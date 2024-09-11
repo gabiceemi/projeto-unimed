@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tela de Login</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <h2>Login</h2>
+        <form id="loginForm">
+            <input type="text" id="username" placeholder="Usuário" required>
+            <input type="password" id="password" placeholder="Senha" required>
+            <button type="submit">Login</button>
+        </form>
+        <p>Ainda não tem uma conta? <a href="#" id="registerLink">Cadastre-se</a></p>
+
+        <div class="register-container" id="registerContainer" style="display:none;">
+            <h2>Cadastro de Usuário</h2>
+            <form id="registerForm">
+                <input type="text" id="newUsername" placeholder="Usuário" required>
+                <input type="password" id="newPassword" placeholder="Senha" required>
+                <button type="submit">Cadastrar</button>
+            </form>
+        </div>
+
+        <a href="#" id="configLink">Configurações (Upload de Banco de Dados)</a>
+        <input type="file" id="uploadDb" style="display: none;">
+    </div>
+    <script src="js/alasql.min.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
