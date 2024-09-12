@@ -1,10 +1,8 @@
-// Exemplo de inicialização de usuários e clientes com AlaSQL
 document.addEventListener('DOMContentLoaded', function () {
     alasql('CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, username STRING, password STRING)');
     alasql('CREATE TABLE IF NOT EXISTS clientes (id INT AUTO_INCREMENT PRIMARY KEY, nome STRING, cpf STRING UNIQUE, nascimento DATE, telefone STRING, celular STRING)');
     alasql('CREATE TABLE IF NOT EXISTS enderecos (id INT AUTO_INCREMENT PRIMARY KEY, cliente_id INT, cep STRING, rua STRING, bairro STRING, cidade STRING, estado STRING, pais STRING, principal BOOLEAN)');
 
-    // Lógica de login/cadastro de usuários
     document.getElementById('loginForm').addEventListener('submit', function (e) {
         e.preventDefault();
         let username = document.getElementById('username').value;
@@ -12,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let user = alasql('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
 
         if (user.length > 0) {
-            window.location.href = 'clientes.html'; // Redireciona para tela de clientes
+            window.location.href = 'clientes.html';
         } else {
             alert('Usuário ou senha incorretos');
         }
@@ -37,8 +35,9 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('registerContainer').style.display = 'none';
         }
     });
+});
 
-    // Upload do banco de dados
+document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('configLink').addEventListener('click', function () {
         document.getElementById('uploadDb').click();
     });
@@ -49,37 +48,76 @@ document.addEventListener('DOMContentLoaded', function () {
             let reader = new FileReader();
             reader.onload = function (event) {
                 let data = JSON.parse(event.target.result);
-                alasql('DROP TABLE IF EXISTS clientes');
-                alasql('DROP TABLE IF EXISTS enderecos');
-                alasql('CREATE TABLE clientes', data.clientesTable);
-                alasql('CREATE TABLE enderecos', data.enderecosTable);
+
+                alasql('DELETE FROM clientes');
+                alasql('DELETE FROM enderecos');
+
+                data.clientes.forEach(cliente => {
+                    alasql('INSERT INTO clientes (id, nome, cpf, nascimento, telefone, celular) VALUES (?, ?, ?, ?, ?, ?)', 
+                        [cliente.id, cliente.nome, cliente.cpf, cliente.nascimento, cliente.telefone, cliente.celular]);
+                });
+
+                data.enderecos.forEach(endereco => {
+                    alasql('INSERT INTO enderecos (id, cliente_id, cep, rua, bairro, cidade, estado, pais, principal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+                        [endereco.id, endereco.cliente_id, endereco.cep, endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.pais, endereco.principal]);
+                });
+
                 alert('Banco de dados carregado com sucesso');
+
+                listarClientes();
             };
             reader.readAsText(file);
         }
     });
-});
-document.addEventListener('DOMContentLoaded', function () {
+
     function listarClientes() {
         let clientes = alasql('SELECT * FROM clientes');
         let tableBody = document.querySelector('#clientesTable tbody');
         tableBody.innerHTML = '';
         clientes.forEach(cliente => {
-            let row = `<tr>
+            let row = document.createElement('tr');
+            row.innerHTML = `
                 <td>${cliente.nome}</td>
                 <td>${cliente.cpf}</td>
                 <td>${cliente.nascimento}</td>
                 <td>${cliente.telefone}</td>
                 <td>${cliente.celular}</td>
-                <td><button onclick="selectCliente(${cliente.id})">Selecionar</button></td>
-            </tr>`;
-            tableBody.insertAdjacentHTML('beforeend', row);
+                <td><button>Selecionar</button></td>
+            `;
+
+            row.querySelector('button').addEventListener('click', function () {
+                localStorage.setItem('clienteId', cliente.id);
+                localStorage.setItem('clienteNome', cliente.nome);
+
+                listarEnderecos(cliente.id); 
+            });
+            tableBody.appendChild(row);
         });
     }
 
-    function selectCliente(id) {
-        localStorage.setItem('clienteId', id);
-        window.location.href = 'enderecos.html';
+    function listarEnderecos(clienteId) {
+        let enderecos = alasql('SELECT * FROM enderecos WHERE cliente_id = ?', [clienteId]);
+        let tableBody = document.querySelector('#enderecosTable tbody');
+        tableBody.innerHTML = '';
+
+        if (enderecos.length > 0) {
+            enderecos.forEach(endereco => {
+                let row = `
+                <tr>
+                    <td>${endereco.cep}</td>
+                    <td>${endereco.rua}</td>
+                    <td>${endereco.bairro}</td>
+                    <td>${endereco.cidade}</td>
+                    <td>${endereco.estado}</td>
+                    <td>${endereco.pais}</td>
+                    <td>${endereco.principal ? 'Sim' : 'Não'}</td>
+                </tr>
+                `;
+                tableBody.insertAdjacentHTML('beforeend', row);
+            });
+        } else {
+            tableBody.innerHTML = '<tr><td colspan="7">Nenhum endereço cadastrado para este cliente.</td></tr>';
+        }
     }
 
     document.getElementById('clienteForm').addEventListener('submit', function (e) {
@@ -89,54 +127,54 @@ document.addEventListener('DOMContentLoaded', function () {
         let nascimento = document.getElementById('nascimento').value;
         let telefone = document.getElementById('telefone').value;
         let celular = document.getElementById('celular').value;
-
-        // Verifica se o CPF já existe
+    
         let existingCliente = alasql('SELECT * FROM clientes WHERE cpf = ?', [cpf]);
-
+    
         if (existingCliente.length > 0) {
             alert('CPF já cadastrado!');
         } else {
-            // Adiciona um novo cliente
-            alasql('INSERT INTO clientes (nome, cpf, nascimento, telefone, celular) VALUES (?, ?, ?, ?, ?)',
+            alasql('INSERT INTO clientes (nome, cpf, nascimento, telefone, celular) VALUES (?, ?, ?, ?, ?)', 
                 [nome, cpf, nascimento, telefone, celular]);
-            listarClientes(); // Atualiza a lista de clientes
+            
+            listarClientes();
             alert('Cliente cadastrado com sucesso!');
         }
     });
 
-    listarClientes(); // Lista clientes quando a página carrega
-});
-
-document.addEventListener('DOMContentLoaded', function () {
-    let clienteId = localStorage.getItem('clienteId');
-    if (!clienteId) {
-        alert('Cliente não selecionado!');
-        window.location.href = 'clientes.html'; // Redireciona para a página de clientes
-        return;
-    }
-
-    function listarEnderecos() {
-        let enderecos = alasql('SELECT * FROM enderecos WHERE cliente_id = ?', [clienteId]);
-        let tableBody = document.querySelector('#enderecosTable tbody');
-        tableBody.innerHTML = '';
-        enderecos.forEach(endereco => {
-            let row = `<tr>
-                <td>${endereco.cep}</td>
-                <td>${endereco.rua}</td>
-                <td>${endereco.bairro}</td>
-                <td>${endereco.cidade}</td>
-                <td>${endereco.estado}</td>
-                <td>${endereco.pais}</td>
-                <td>${endereco.principal ? 'Sim' : 'Não'}</td>
-            </tr>`;
-            tableBody.insertAdjacentHTML('beforeend', row);
-        });
-    }
-
-    listarEnderecos();
-
     document.getElementById('enderecoForm').addEventListener('submit', function (e) {
         e.preventDefault();
+
+        document.getElementById('exportDb').addEventListener('click', function () {
+            let clientes = alasql('SELECT * FROM clientes');
+            let enderecos = alasql('SELECT * FROM enderecos');
+    
+            console.log(clientes); 
+    
+            let data = {
+                clientes: clientes,
+                enderecos: enderecos
+            };
+    
+            let jsonString = JSON.stringify(data, null, 2);
+    
+            let blob = new Blob([jsonString], { type: 'application/json' });
+            let url = URL.createObjectURL(blob);
+    
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'database.json';
+            a.click();
+    
+            URL.revokeObjectURL(url);
+        });
+
+        let clienteId = localStorage.getItem('clienteId');
+
+        if (!clienteId) {
+            alert('Erro: clienteId não encontrado! Por favor, selecione um cliente.');
+            return;
+        }
+
         let cep = document.getElementById('cep').value;
         let rua = document.getElementById('rua').value;
         let bairro = document.getElementById('bairro').value;
@@ -152,23 +190,15 @@ document.addEventListener('DOMContentLoaded', function () {
         alasql('INSERT INTO enderecos (cliente_id, cep, rua, bairro, cidade, estado, pais, principal) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             [clienteId, cep, rua, bairro, cidade, estado, pais, principal]);
 
-        listarEnderecos();
+        listarEnderecos(clienteId); 
+
         alert('Endereço cadastrado com sucesso!');
+
+        document.getElementById('enderecoForm').reset();
     });
 
-    document.getElementById('exportDb').addEventListener('click', function () {
-        let clientes = alasql('SELECT * FROM clientes');
-        let enderecos = alasql('SELECT * FROM enderecos');
-        let data = {
-            clientesTable: clientes,
-            enderecosTable: enderecos
-        };
-
-        let blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        let url = URL.createObjectURL(blob);
-        let a = document.createElement('a');
-        a.href = url;
-        a.download = 'database.json';
-        a.click();
-    });
+    listarClientes();
 });
+
+
+
